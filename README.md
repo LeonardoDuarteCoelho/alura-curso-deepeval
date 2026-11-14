@@ -1,4 +1,4 @@
-﻿# Project: Continuous LLM Evaluation with GitHub Actions, DeepEval, and FastAPI
+# Project: Continuous LLM Evaluation with GitHub Actions, DeepEval, and FastAPI
 
 Welcome to the repository for Alura's [Continuous Integration for LLMs](https://cursos.alura.com.br/course/gitactions-mlflow-deepeval) course. This project explores automated evaluation and CI/CD practices for LLM applications.
 
