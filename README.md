@@ -1,73 +1,110 @@
-# Avaliação contínua de LLMs com DeepEval e FastAPI
+﻿# Project: Continuous LLM Evaluation with GitHub Actions, DeepEval, and FastAPI
 
-Projeto do curso [Integração contínua para LLMs](https://cursos.alura.com.br/course/gitactions-mlflow-deepeval). A API implementa um chatbot jurídico que responde com base no conteúdo de `data/context.txt` e mantém o histórico das conversas em SQLite. O chatbot usa um modelo local disponibilizado pelo LM Studio por meio da API compatível com OpenAI.
+Welcome to the repository for Alura's [Continuous Integration for LLMs](https://cursos.alura.com.br/course/gitactions-mlflow-deepeval) course. This project explores automated evaluation and CI/CD practices for LLM applications.
 
-## Estrutura
+## 🚀 About the Project
 
-- `app/main.py`: API FastAPI e endpoint `/chat/`.
-- `app/chatbot.py`: instruções do chatbot e conexão com o modelo.
-- `app/schema/` e `app/database/`: formato das requisições e persistência do histórico.
-- `data/context.txt`: conteúdo de referência para as respostas.
-- `tests/`: testes de avaliação DeepEval e adaptadores de modelos.
-- `Dockerfile` e `requirements.txt`: imagem da aplicação e dependências Python.
+The project provides a FastAPI chatbot that answers questions using a legal reference text. The chatbot connects to a local LLM through LM Studio's OpenAI-compatible API. The DeepEval test suite evaluates metrics including `Faithfulness`, `AnswerRelevancy`, `Bias`, and `Toxicity`.
 
-## Configuração no Windows
+## ✨ Technologies
 
-1. Instale Python 3.11 e crie o ambiente virtual na raiz do projeto:
+- **Python 3.11**: Project runtime
+- **FastAPI**: Chatbot API framework
+- **Uvicorn**: ASGI server
+- **LM Studio** and **OpenAI SDK**: Local model serving and client integration
+- **DeepEval**: LLM evaluation framework
+- **Pytest**: Testing framework
+- **SQLAlchemy**: SQLite conversation history persistence
+- **Docker**: Application containerization
+- **GitHub Actions**: CI/CD platform
+- **python-dotenv**: Environment variable management
 
+## 📁 Project Structure
+
+```text
+.
+├── .env                          # Local environment variables (do not commit)
+├── .gitignore
+├── Dockerfile
+├── pytest.ini
+├── requirements.txt
+├── README.md
+├── data/
+│   └── context.txt               # Chatbot reference content
+├── app/
+│   ├── main.py                   # FastAPI entry point
+│   ├── chatbot.py                # Chatbot logic and model integration
+│   ├── sanitization.py           # Response sanitization
+│   ├── schema/
+│   │   └── chat.py               # Request schema
+│   └── database/
+│       ├── crud.py               # Conversation history operations
+│       ├── database.py           # SQLAlchemy configuration
+│       └── models.py             # Database models
+└── tests/
+    ├── test_chatbot_flow.py      # DeepEval chatbot tests
+    ├── custom_metrics.py         # Custom evaluation metrics
+    ├── groq_custom_model.py      # Groq evaluator adapter
+    ├── operouter_custom_model.py # OpenRouter evaluator adapter
+    └── gemini_custom_model.py    # Gemini evaluator adapter
+```
+
+## ⚙️ Local Environment Setup
+
+1. **Obtain the project** and open a terminal in its root directory.
+
+2. **Create a virtual environment** with Python 3.11:
    ```powershell
    py -3.11 -m venv .venv
+   ```
+
+3. **Install dependencies:**
+   ```powershell
    .\.venv\Scripts\python.exe -m pip install -r requirements.txt
    ```
 
-2. No LM Studio, baixe e carregue um modelo e inicie o servidor na aba **Developer**. Confira os identificadores disponíveis:
-
+4. **Start LM Studio:** Download and load a model, then start the server on the **Developer** tab. List the available model identifiers:
    ```powershell
    Invoke-RestMethod http://localhost:1234/v1/models
    ```
 
-3. Crie um arquivo `.env` na raiz, usando o identificador do modelo retornado pelo servidor:
-
+5. **Configure `.env`:** Create it in the project root, using an identifier returned by LM Studio:
    ```env
    LM_STUDIO_BASE_URL=http://localhost:1234/v1
    LM_STUDIO_API_KEY=lm-studio
    LM_STUDIO_MODEL=gemma-4-e4b-it
    ```
+   LM Studio does not require authentication by default, so `lm-studio` can be used as a placeholder. If authentication is enabled, use your LM Studio token instead. Do not commit `.env`.
 
-   O LM Studio não exige autenticação por padrão; `lm-studio` é um valor para o cliente OpenAI. Se você habilitar autenticação no servidor, use seu token em `LM_STUDIO_API_KEY`. Não versione o `.env`.
+## ▶️ Running the Project Locally
 
-4. Inicie a API a partir da raiz do projeto:
-
+1. **Start the FastAPI application** from the project root:
    ```powershell
    .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
    ```
+   Open the interactive documentation at [http://localhost:8000/docs](http://localhost:8000/docs). For `POST /chat/`, provide a `session-id` header and a question. Omit `model` or set it to `null` to use `LM_STUDIO_MODEL`. An explicit model must be available in LM Studio. Conversation history is stored in `chat_history.db` by session ID.
 
-   Acesse [http://localhost:8000/docs](http://localhost:8000/docs). No endpoint `POST /chat/`, informe um `session-id` e uma pergunta. Omita `model` ou informe `null` para usar `LM_STUDIO_MODEL`; se informar um modelo, ele deverá estar disponível no LM Studio. O histórico é associado ao `session-id` e armazenado em `chat_history.db`.
+2. **Alternatively, build and run the API with Docker Desktop:**
+   ```powershell
+   docker build -t chatbot-api .
+   docker run --env-file .env -e LM_STUDIO_BASE_URL=http://host.docker.internal:1234/v1 -p 8000:8000 chatbot-api
+   ```
+   The container needs access to the LM Studio server on the host; `localhost` inside the container refers to the container itself.
 
-## Docker
+3. **Run the DeepEval tests** after configuring their evaluators and starting the API:
+   ```powershell
+   .\.venv\Scripts\python.exe -m deepeval test run tests/test_chatbot_flow.py -vv
+   ```
+   The current test file instantiates Groq and Gemini evaluators and requires `GROQ_API_KEY` and `GOOGLE_API_KEY`. It also sends a Groq model name to the chatbot; change that value to an LM Studio model identifier. `CONFIDENT_API_KEY` is optional for uploading results. To run entirely locally, the evaluator also needs a local model adapter.
 
-O endereço `localhost` dentro do contêiner se refere ao próprio contêiner. No Docker Desktop, configure `LM_STUDIO_BASE_URL=http://host.docker.internal:1234/v1` no ambiente do contêiner e confira se o servidor LM Studio aceita conexões do contêiner.
+## 🤖 CI/CD with GitHub Actions
 
-```powershell
-docker build -t chatbot-api .
-docker run --env-file .env -e LM_STUDIO_BASE_URL=http://host.docker.internal:1234/v1 -p 8000:8000 chatbot-api
-```
+This checkout does not currently contain a GitHub Actions workflow. A workflow can build the Docker image, start the API, and run the DeepEval suite after its models and credentials are configured. GitHub-hosted runners cannot automatically access an LM Studio server on your computer; use a runner with access to a model server or another inference setup.
 
-## Avaliação com DeepEval
+## 📚 References
 
-Os testes em `tests/test_chatbot_flow.py` ainda usam modelos Groq e Gemini como avaliadores, instanciados durante a importação, e enviam um nome de modelo Groq ao chatbot. Para executá-los como estão, são necessárias `GROQ_API_KEY` e `GOOGLE_API_KEY`, além de adaptar o modelo enviado à API para um identificador disponível no LM Studio. `CONFIDENT_API_KEY` é opcional para envio de resultados ao Confident AI.
-
-Para usar somente modelos locais, é necessário adaptar também o avaliador DeepEval e o modelo enviado pelo teste; a configuração do chatbot não altera automaticamente essas partes. Com a API em execução e os testes configurados, execute:
-
-```powershell
-.\.venv\Scripts\python.exe -m deepeval test run tests/test_chatbot_flow.py -vv
-```
-
-Um runner hospedado no GitHub não acessa automaticamente o LM Studio do computador local; a integração contínua precisa de um runner com acesso a um servidor de modelos ou de outra infraestrutura de inferência.
-
-## Referências
-
-- [LM Studio: servidor local](https://lmstudio.ai/docs/developer/core/server)
-- [LM Studio: compatibilidade com OpenAI](https://lmstudio.ai/docs/developer/openai-compat)
+- [LM Studio: local server](https://lmstudio.ai/docs/developer/core/server)
+- [LM Studio: OpenAI compatibility](https://lmstudio.ai/docs/developer/openai-compat)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [DeepEval](https://deepeval.com/)
+- [GitHub Actions](https://docs.github.com/en/actions)
